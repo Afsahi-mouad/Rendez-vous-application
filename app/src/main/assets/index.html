@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Système de Gestion des Réunions</title>
+    <style>
+        :root {
+            --color-background-primary: #ffffff;
+            --color-background-secondary: #f8f9fa;
+            --color-background-tertiary: #f1f3f5;
+            --color-text-primary: #212529;
+            --color-text-secondary: #6c757d;
+            --color-text-tertiary: #adb5bd;
+            --color-border-tertiary: #dee2e6;
+            --border-radius-lg: 12px;
+            --border-radius-md: 8px;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-sans);
+            font-size: 14px;
+            color: var(--color-text-primary);
+            background: var(--color-background-tertiary);
+            overflow-x: hidden;
+        }
+
+        .app { min-height: 100vh; display: flex; flex-direction: column; }
+        .screen { display: none; width: 100%; }
+        .screen.active { display: flex; flex-direction: column; min-height: 100vh; }
+
+        /* Login */
+        .login-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--color-background-secondary);
+            padding: 20px;
+        }
+        .login-box {
+            background: var(--color-background-primary);
+            border: 0.5px solid var(--color-border-tertiary);
+            border-radius: var(--border-radius-lg);
+            padding: 2.5rem 1.5rem;
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .login-logo { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
+        .login-title { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
+        .login-sub { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 2rem; }
+        .login-btns { display: flex; flex-direction: column; gap: 10px; }
+
+        .btn-sec { background: #042C53; color: #E6F1FB; border: none; padding: 14px; border-radius: var(--border-radius-md); font-size: 14px; font-weight: 500; cursor: pointer; }
+        .btn-dir { background: #3B6D11; color: #EAF3DE; border: none; padding: 14px; border-radius: var(--border-radius-md); font-size: 14px; font-weight: 500; cursor: pointer; }
+
+        /* Layout */
+        .portal { display: flex; flex: 1; min-height: 0; flex-direction: column; }
+        @media (min-width: 768px) {
+            .portal { flex-direction: row; }
+            .sidebar { width: 220px !important; height: 100vh; position: sticky; top: 0; }
+        }
+
+        .sidebar { width: 100%; background: var(--color-background-secondary); border-right: 0.5px solid var(--color-border-tertiary); padding: 1rem 0; flex-shrink: 0; display: flex; flex-direction: column; }
+        .sidebar-brand { padding: 0.75rem 1.25rem 1rem; border-bottom: 0.5px solid var(--color-border-tertiary); margin-bottom: 0.5rem; }
+        .sidebar-brand .role { font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .sidebar-brand .name { font-size: 14px; font-weight: 500; }
+
+        .nav-item { padding: 12px 1.25rem; cursor: pointer; font-size: 13px; color: var(--color-text-secondary); border-left: 3px solid transparent; display: flex; align-items: center; gap: 8px; position: relative; }
+        .nav-item.active { background: var(--color-background-primary); color: var(--color-text-primary); border-left-color: #185FA5; font-weight: 500; }
+        .nav-badge { margin-left: auto; background: #E24B4A; color: #FCEBEB; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: 600; }
+        .logout-btn { margin-top: auto; margin: 1rem; padding: 10px; background: transparent; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); cursor: pointer; font-size: 12px; color: var(--color-text-secondary); }
+
+        .main { flex: 1; padding: 1.25rem; overflow-y: auto; background: var(--color-background-tertiary); }
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        /* Top nav (Director) */
+        .topnav { background: var(--color-background-secondary); border-bottom: 0.5px solid var(--color-border-tertiary); padding: 0 1rem; display: flex; align-items: center; overflow-x: auto; white-space: nowrap; }
+        .topnav-brand { font-size: 13px; font-weight: 500; padding: 1rem 0; margin-right: 1rem; color: var(--color-text-secondary); flex-shrink: 0; }
+        .topnav-item { padding: 1rem 0.75rem; cursor: pointer; font-size: 13px; color: var(--color-text-secondary); border-bottom: 2px solid transparent; display: flex; align-items: center; gap: 4px; }
+        .topnav-item.active { color: var(--color-text-primary); border-bottom-color: #185FA5; font-weight: 500; }
+        .topnav-logout { margin-left: auto; background: transparent; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 4px 8px; cursor: pointer; font-size: 11px; }
+
+        /* Cards & Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 1.5rem; }
+        @media (min-width: 600px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } }
+
+        .stat-card { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 1rem; text-align: center; }
+        .stat-val { font-size: 24px; font-weight: 500; line-height: 1.2; }
+        .stat-label { font-size: 10px; color: var(--color-text-secondary); margin-top: 4px; text-transform: uppercase; }
+
+        .card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1.25rem; margin-bottom: 1rem; overflow-x: auto; position: relative; }
+        .card-title { font-size: 14px; font-weight: 500; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 0.5px solid var(--color-border-tertiary); }
+        .section-title { font-size: 16px; font-weight: 500; margin-bottom: 1rem; }
+
+        /* Badges */
+        .badge { display: inline-block; font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 10px; white-space: nowrap; }
+        .b-urgent { background: #FAECE7; color: #993C1D; }
+        .b-normal { background: #E6F1FB; color: #185FA5; }
+        .b-confirmed { background: #EAF3DE; color: #3B6D11; }
+        .b-scheduled { background: #FAEEDA; color: #854F0B; }
+        .b-cancelled { background: #FCEBEB; color: #A32D2D; }
+        .b-rescheduled { background: #FAEEDA; color: #854F0B; }
+        .b-completed { background: #F1EFE8; color: #5F5E5A; }
+        .b-action { background: #FFD43B; color: #856404; }
+
+        .note-box {
+            background: #FFF9DB;
+            border: 1px solid #FFE066;
+            border-radius: var(--border-radius-md);
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #856404;
+            line-height: 1.4;
+        }
+        .dir-note-input {
+            width: 100%;
+            height: 60px;
+            margin: 10px 0;
+            font-size: 13px;
+            padding: 8px;
+            border: 1px solid var(--color-border-tertiary);
+            border-radius: var(--border-radius-md);
+            resize: none;
+        }
+
+        /* Meeting rows */
+        .meeting-row { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
+        @media (min-width: 480px) { .meeting-row { flex-direction: row; align-items: center; } }
+        .meeting-time { font-size: 12px; font-weight: 600; color: #185FA5; min-width: 100px; }
+        .meeting-title { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+        .meeting-inst { font-size: 11px; color: var(--color-text-secondary); }
+
+        /* Form elements */
+        textarea, input[type=text], input[type=date], input[type=time], select {
+            width: 100%; padding: 10px; border: 0.5px solid var(--color-border-tertiary);
+            border-radius: var(--border-radius-md); font-size: 14px;
+            background: var(--color-background-primary); color: var(--color-text-primary);
+            margin-bottom: 12px; -webkit-appearance: none;
+        }
+
+        /* Buttons */
+        .btn { padding: 10px 16px; border-radius: var(--border-radius-md); font-size: 13px; font-weight: 500; cursor: pointer; border: none; }
+        .btn-primary { background: #042C53; color: #E6F1FB; }
+        .btn-danger { background: #E24B4A; color: #ffffff; }
+
+        .conflict-notif {
+            display: none; background: #fff3cd; color: #856404;
+            padding: 12px; border-radius: var(--border-radius-md);
+            margin-bottom: 1rem; font-size: 13px; border: 1px solid #ffeeba;
+        }
+
+        .success-notif {
+            display: none; background: #d4edda; color: #155724;
+            padding: 10px; border-radius: var(--border-radius-md);
+            margin-bottom: 1rem; font-size: 13px; text-align: center;
+            border: 1px solid #c3e6cb;
+        }
+
+        .log-table { width: 100%; border-collapse: collapse; min-width: 500px; }
+        .log-table th { text-align: left; padding: 10px; background: var(--color-background-secondary); font-size: 11px; color: var(--color-text-secondary); }
+        .log-table td { padding: 10px; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px; }
+
+        /* Search Bar */
+        .search-container { margin-bottom: 1rem; position: relative; }
+        .search-input {
+            width: 100%; padding: 10px 35px 10px 12px;
+            border: 1px solid var(--color-border-tertiary);
+            border-radius: var(--border-radius-md);
+            font-size: 13px;
+        }
+        .search-icon { position: absolute; right: 12px; top: 10px; color: var(--color-text-tertiary); }
+
+        /* Modal */
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+            align-items: center; justify-content: center; padding: 20px;
+        }
+        .modal-content {
+            background: white; padding: 20px; border-radius: var(--border-radius-lg);
+            width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .close { font-size: 24px; cursor: pointer; color: var(--color-text-secondary); }
+
+        /* Mobile specific adjustments */
+        @media (max-width: 600px) {
+            .main { padding: 1rem; }
+            .section-title { font-size: 18px; }
+            .login-box { border: none; box-shadow: none; background: transparent; }
+            .card { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <!-- SCREEN: Login -->
+    <div id="screen-login" class="screen active">
+        <div class="login-wrap">
+            <div class="login-box">
+                <div class="login-logo">République — Ministère de l'Éducation Nationale</div>
+                <div class="login-title">Gestion des Réunions</div>
+                <div class="login-sub">Sélectionnez votre portail</div>
+                <div class="login-btns">
+                    <button class="btn-sec" onclick="goPortal('secretary')">Portail Secrétaire</button>
+                    <button class="btn-dir" onclick="goPortal('director')">Portail Directeur</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCREEN: Secretary Portal -->
+    <div id="screen-secretary" class="screen">
+        <div class="portal">
+            <div class="sidebar">
+                <div class="sidebar-brand">
+                    <div class="role">Secrétariat</div>
+                    <div class="name">Mme. Amina Ouali</div>
+                </div>
+                <div class="nav-item active" onclick="secNav(this,'dash')">Tableau de bord</div>
+                <div class="nav-item" onclick="secNav(this,'new')">Nouvelle réunion</div>
+                <div class="nav-item" onclick="secNav(this,'list')">Liste des réunions</div>
+                <div class="nav-item" onclick="secNav(this,'queue')">File d'attente <span class="nav-badge" id="side-wait-badge">0</span></div>
+                <button class="logout-btn" onclick="logout()">Déconnexion</button>
+            </div>
+            <div class="main">
+                <!-- DASHBOARD -->
+                <div id="sec-dash" class="panel active">
+                    <div class="section-title">Tableau de bord</div>
+                    <div id="sec-notifs"></div>
+                    <div class="stats-grid">
+                        <div class="stat-card"><div class="stat-val" style="color:#185FA5" id="stat-count">0</div><div class="stat-label">Total</div></div>
+                        <div class="stat-card"><div class="stat-val" style="color:#854F0B" id="stat-wait">0</div><div class="stat-label">En attente</div></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Dernières activités</div>
+                        <div id="dash-meeting-list">
+                            <!-- Meetings injected here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NEW MEETING FORM -->
+                <div id="sec-new" class="panel">
+                    <div class="section-title">Créer une réunion</div>
+                    <div id="conflict-msg" class="conflict-notif">⚠ <strong>Conflit détecté !</strong> Une réunion est déjà prévue à cette heure le même jour.</div>
+                    <div id="new-success-msg" class="success-notif">✓ Réunion enregistrée avec succès !</div>
+                    <div class="card">
+                        <label class="form-label">Titre de la réunion *</label>
+                        <input type="text" id="m-title" placeholder="Ex: Revue du budget" />
+
+                        <div style="display:flex; gap:10px">
+                            <div style="flex:1">
+                                <label class="form-label">Date *</label>
+                                <input type="date" id="m-date" />
+                            </div>
+                            <div style="flex:1">
+                                <label class="form-label">Heure *</label>
+                                <input type="time" id="m-time" />
+                            </div>
+                        </div>
+
+                        <label class="form-label">Institution / Direction</label>
+                        <input type="text" id="m-inst" placeholder="Ex: Direction des Finances" />
+
+                        <button class="btn btn-primary" style="width:100%; margin-top:10px" onclick="saveMeeting()">Enregistrer la réunion</button>
+                    </div>
+                </div>
+
+                <!-- MEETING LIST -->
+                <div id="sec-list" class="panel">
+                    <div class="section-title">Liste complète</div>
+
+                    <div class="search-container">
+                        <input type="text" class="search-input" id="sec-search" placeholder="Rechercher par titre, institution..." oninput="renderTable()">
+                        <span class="search-icon">🔍</span>
+                    </div>
+
+                    <div class="card" style="padding:0">
+                        <div style="overflow-x:auto">
+                            <table class="log-table">
+                                <thead><tr><th>Date & Heure</th><th>Réunion</th><th>Institution</th><th>Statut</th><th>Actions</th></tr></thead>
+                                <tbody id="full-table-body">
+                                    <!-- Table rows injected here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WAITING QUEUE (NEW) -->
+                <div id="sec-queue" class="panel">
+                    <div class="section-title">File d'attente (Actions requises)</div>
+                    <div id="wait-list-container">
+                        <!-- Detailed waiting items here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCREEN: Director Portal -->
+    <div id="screen-director" class="screen">
+        <div class="topnav">
+            <span class="topnav-brand">M. Ahmed Saïd</span>
+            <div class="topnav-item active" onclick="dirNav(this,'dir-today')">Aujourd'hui</div>
+            <div class="topnav-item" onclick="dirNav(this,'dir-upcoming')">À venir</div>
+            <div class="topnav-item" onclick="dirNav(this,'dir-refused')">Refusés</div>
+            <button class="topnav-logout" onclick="logout()">Quitter</button>
+        </div>
+        <div class="main">
+            <div class="search-container">
+                <input type="text" class="search-input" id="dir-search" placeholder="Rechercher une réunion..." oninput="renderDirector()">
+                <span class="search-icon">🔍</span>
+            </div>
+
+            <div id="dir-today" class="panel active">
+                <div id="dir-today-pending-sect">
+                    <div class="section-title">Réunions à décider</div>
+                    <div id="dir-today-list">
+                        <!-- Pending items injected here -->
+                    </div>
+                </div>
+
+                <div id="dir-today-confirmed-sect" style="margin-top:20px">
+                    <div class="section-title">Planning d'aujourd'hui</div>
+                    <div id="dir-today-confirmed">
+                        <!-- Confirmed items injected here -->
+                    </div>
+                </div>
+            </div>
+            <div id="dir-upcoming" class="panel">
+                <div class="section-title">Prochaines réunions</div>
+                <div id="dir-upcoming-list">
+                    <!-- Upcoming items injected here -->
+                </div>
+            </div>
+
+            <div id="dir-refused" class="panel">
+                <div class="section-title">Réunions refusées / à reporter</div>
+                <div id="dir-refused-list">
+                    <!-- Refused items injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Edit Meeting -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="section-title" style="margin-bottom:0">Modifier la réunion</div>
+                <span class="close" onclick="closeEditModal()">&times;</span>
+            </div>
+            <input type="hidden" id="edit-id">
+            <label class="form-label">Titre de la réunion</label>
+            <input type="text" id="edit-title">
+
+            <div style="display:flex; gap:10px">
+                <div style="flex:1">
+                    <label class="form-label">Date</label>
+                    <input type="date" id="edit-date">
+                </div>
+                <div style="flex:1">
+                    <label class="form-label">Heure</label>
+                    <input type="time" id="edit-time">
+                </div>
+            </div>
+
+            <label class="form-label">Institution / Direction</label>
+            <input type="text" id="edit-inst">
+
+            <label class="form-label">Statut (Attention : forcer le changement)</label>
+            <select id="edit-status">
+                <option value="En attente">En attente (Chez Directeur)</option>
+                <option value="Confirmé">Confirmé</option>
+                <option value="À reporter">À reporter (Refusé)</option>
+            </select>
+
+            <button class="btn btn-primary" style="width:100%; margin-top:10px" onclick="updateMeeting()">Enregistrer les modifications</button>
+            <button class="btn btn-danger" style="width:100%; margin-top:8px; background:#ccc; color: #333" onclick="closeEditModal()">Annuler</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Data Storage
+    let meetings = [];
+
+    function loadMeetings() {
+        const saved = localStorage.getItem('men_meetings');
+        if (saved) {
+            meetings = JSON.parse(saved);
+        } else {
+            meetings = [
+                { id: 1, title: "Réunion Budget MEN", date: "2025-04-15", time: "10:00", inst: "Direction Financière", status: "En attente" },
+                { id: 2, title: "Planification Examens", date: "2025-04-16", time: "14:00", inst: "Service Examens", status: "En attente" }
+            ];
+        }
+    }
+
+    function saveMeetings() {
+        localStorage.setItem('men_meetings', JSON.stringify(meetings));
+    }
+
+    function renderApp() {
+        saveMeetings();
+        updateStats();
+        renderDashboard();
+        renderTable();
+        renderWaitingList();
+        renderDirector();
+    }
+
+    function updateStats() {
+        const waitCount = meetings.filter(m => m.status === 'En attente').length;
+        const actionNeeded = meetings.filter(m => m.status === 'À reporter').length;
+
+        document.getElementById('stat-count').innerText = meetings.length;
+        document.getElementById('stat-wait').innerText = waitCount;
+
+        const badge = document.getElementById('side-wait-badge');
+        badge.innerText = waitCount + actionNeeded;
+        badge.style.background = actionNeeded > 0 ? '#E24B4A' : '#6c757d';
+    }
+
+    function saveMeeting() {
+        const title = document.getElementById('m-title').value;
+        const date = document.getElementById('m-date').value;
+        const time = document.getElementById('m-time').value;
+        const inst = document.getElementById('m-inst').value || "Non spécifié";
+
+        if (!title || !date || !time) {
+            alert("Veuillez remplir les champs obligatoires (*)");
+            return;
+        }
+
+        // CONFLICT DETECTION
+        const conflict = meetings.find(m => m.date === date && m.time === time);
+        if (conflict) {
+            const conflictMsg = document.getElementById('conflict-msg');
+            conflictMsg.style.display = 'block';
+            setTimeout(() => { conflictMsg.style.display = 'none'; }, 5000);
+            return;
+        }
+
+        const newMeeting = {
+            id: Date.now(),
+            title: title,
+            date: date,
+            time: time,
+            inst: inst,
+            status: "En attente"
+        };
+
+        meetings.unshift(newMeeting);
+
+        const msg = document.getElementById('new-success-msg');
+        msg.style.display = 'block';
+
+        document.getElementById('m-title').value = '';
+        document.getElementById('m-date').value = '';
+        document.getElementById('m-time').value = '';
+        document.getElementById('m-inst').value = '';
+
+        renderApp();
+        setTimeout(() => { msg.style.display = 'none'; }, 3000);
+    }
+
+    function renderDashboard() {
+        const list = document.getElementById('dash-meeting-list');
+        list.innerHTML = meetings.slice(0, 5).map(m => `
+            <div class="meeting-row">
+                <div class="meeting-time">${m.date} · ${m.time}</div>
+                <div style="flex:1">
+                    <div class="meeting-title">${m.title}</div>
+                    <div class="meeting-inst">${m.inst}</div>
+                </div>
+                <span class="badge ${m.status === 'Confirmé' ? 'b-confirmed' : (m.status === 'À reporter' ? 'b-cancelled' : 'b-scheduled')}">${m.status}</span>
+            </div>
+        `).join('');
+
+        // Action Notifications for Secretary
+        const actionNeeded = meetings.filter(m => m.status === 'À reporter');
+        const notifArea = document.getElementById('sec-notifs');
+        if (actionNeeded.length > 0) {
+            notifArea.innerHTML = `
+                <div class="conflict-notif" style="display:block; margin-bottom:15px; background:#FCEBEB; color:#A32D2D; border-color:#F5C6CB">
+                    <strong>Action requise:</strong> ${actionNeeded.length} réunion(s) ont été refusées ou sont à reporter.
+                    <button class="btn" style="padding:4px 10px; font-size:11px; margin-left:10px; background:#A32D2D; color:white; border-radius:4px" onclick="secNav(null,'queue')">Consulter</button>
+                </div>
+            `;
+        } else {
+            notifArea.innerHTML = '';
+        }
+    }
+
+    function renderTable() {
+        const query = document.getElementById('sec-search').value.toLowerCase();
+        const tbody = document.getElementById('full-table-body');
+
+        const filtered = meetings.filter(m =>
+            m.title.toLowerCase().includes(query) ||
+            m.inst.toLowerCase().includes(query)
+        );
+
+        tbody.innerHTML = filtered.map(m => `
+            <tr>
+                <td>${m.date} à ${m.time}</td>
+                <td><strong>${m.title}</strong></td>
+                <td>${m.inst}</td>
+                <td><span class="badge ${m.status === 'Confirmé' ? 'b-confirmed' : (m.status === 'À reporter' ? 'b-cancelled' : 'b-scheduled')}">${m.status}</span></td>
+                <td><button class="btn" style="padding:4px 8px; font-size:11px; background:#f1f3f5; border:1px solid #dee2e6" onclick="openEditModal(${m.id})">Modifier</button></td>
+            </tr>
+        `).join('');
+    }
+
+    function openEditModal(id) {
+        const m = meetings.find(x => x.id === id);
+        if (!m) return;
+
+        document.getElementById('edit-id').value = m.id;
+        document.getElementById('edit-title').value = m.title;
+        document.getElementById('edit-date').value = m.date;
+        document.getElementById('edit-time').value = m.time;
+        document.getElementById('edit-inst').value = m.inst;
+        document.getElementById('edit-status').value = m.status;
+
+        document.getElementById('edit-modal').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+        document.getElementById('edit-modal').style.display = 'none';
+    }
+
+    function updateMeeting() {
+        const id = parseInt(document.getElementById('edit-id').value);
+        const m = meetings.find(x => x.id === id);
+        if (m) {
+            m.title = document.getElementById('edit-title').value;
+            m.date = document.getElementById('edit-date').value;
+            m.time = document.getElementById('edit-time').value;
+            m.inst = document.getElementById('edit-inst').value;
+            m.status = document.getElementById('edit-status').value;
+
+            closeEditModal();
+            renderApp();
+            alert("Réunion mise à jour avec succès.");
+        }
+    }
+
+    function renderWaitingList() {
+        const container = document.getElementById('wait-list-container');
+        // Secretary sees everything that is not confirmed yet
+        const waiting = meetings.filter(m => m.status !== 'Confirmé');
+
+        if (waiting.length === 0) {
+            container.innerHTML = '<div class="card">Aucune demande en cours.</div>';
+            return;
+        }
+
+        container.innerHTML = waiting.map(m => {
+            let statusBadge = '';
+            let actionBtn = '';
+            let noteContent = '';
+
+            if (m.status === 'En attente') {
+                statusBadge = '<span class="badge b-scheduled">Chez le Directeur</span>';
+                actionBtn = '<div style="font-size:11px; color:var(--color-text-secondary); margin-top:8px">En attente de signature...</div>';
+            } else if (m.status === 'À reporter') {
+                statusBadge = '<span class="badge b-cancelled">À Reporter / Refusé</span>';
+                noteContent = m.note ? `<div class="note-box" style="margin-bottom:10px"><strong>Note du Directeur:</strong><br>${m.note}</div>` : '';
+                actionBtn = `
+                    <div style="margin-top:12px; border-top: 1px solid var(--color-border-tertiary); padding-top:12px">
+                        <div style="display:flex; gap:10px; margin-bottom:10px">
+                            <div style="flex:1">
+                                <label style="font-size:11px; font-weight:600; display:block; margin-bottom:4px">Nouvelle Date</label>
+                                <input type="date" id="resubmit-date-${m.id}" value="${m.date}" style="margin-bottom:0">
+                            </div>
+                            <div style="flex:1">
+                                <label style="font-size:11px; font-weight:600; display:block; margin-bottom:4px">Heure</label>
+                                <input type="time" id="resubmit-time-${m.id}" value="${m.time}" style="margin-bottom:0">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" style="width:100%" onclick="resubmitMeeting(${m.id})">Appliquer & Renvoyer</button>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="card" ${m.status === 'À reporter' ? 'style="border-left: 5px solid #E24B4A"' : ''}>
+                    <div style="display:flex; justify-content:space-between; align-items:start">
+                        <div>
+                            <div class="meeting-title" style="font-size:15px">${m.title}</div>
+                            <div class="meeting-inst">${m.date} à ${m.time} · ${m.inst}</div>
+                        </div>
+                        ${statusBadge}
+                    </div>
+                    ${noteContent}
+                    ${actionBtn}
+                </div>
+            `;
+        }).join('');
+    }
+
+    function resubmitMeeting(id) {
+        const m = meetings.find(x => x.id === id);
+        if (m) {
+            const newDate = document.getElementById(`resubmit-date-${id}`).value;
+            const newTime = document.getElementById(`resubmit-time-${id}`).value;
+
+            if (!newDate || !newTime) {
+                alert("Veuillez spécifier la nouvelle date et heure.");
+                return;
+            }
+
+            m.date = newDate;
+            m.time = newTime;
+            m.status = "En attente";
+            m.note = ""; // Clear the note as it's being resubmitted
+            renderApp();
+            alert("Réunion mise à jour et renvoyée au directeur pour validation.");
+        }
+    }
+
+    function confirmMeeting(id) {
+        const m = meetings.find(x => x.id === id);
+        if (m) {
+            m.status = "Confirmé";
+            renderApp();
+        }
+    }
+
+    function rescheduleMeeting(id) {
+        const note = document.getElementById(`note-${id}`).value;
+        if (!note) {
+            alert("Veuillez ajouter une note expliquant la raison du report ou du refus.");
+            return;
+        }
+        const m = meetings.find(x => x.id === id);
+        if (m) {
+            m.status = "À reporter";
+            m.note = note;
+            renderApp();
+        }
+    }
+
+    function deleteMeeting(id) {
+        if (confirm("Voulez-vous vraiment supprimer cette réunion ?")) {
+            meetings = meetings.filter(x => x.id !== id);
+            renderApp();
+        }
+    }
+
+    function renderDirector() {
+        const query = document.getElementById('dir-search').value.toLowerCase();
+        const todayList = document.getElementById('dir-today-list');
+        const todayConfirmedList = document.getElementById('dir-today-confirmed');
+        const upcomingList = document.getElementById('dir-upcoming-list');
+        const refusedList = document.getElementById('dir-refused-list');
+
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+
+        const filtered = meetings.filter(m =>
+            m.title.toLowerCase().includes(query) ||
+            m.inst.toLowerCase().includes(query)
+        );
+
+        // All pending meetings need decision, regardless of the date
+        const toDecide = filtered.filter(m => m.status === 'En attente');
+        const confirmedToday = filtered.filter(m => m.status === 'Confirmé' && m.date === todayStr);
+        const upcoming = filtered.filter(m => m.date > todayStr && m.status === 'Confirmé');
+        const refused = filtered.filter(m => m.status === 'À reporter');
+
+        // 1. Render Pending
+        if (toDecide.length === 0) {
+            todayList.innerHTML = '<div class="card" style="color:var(--color-text-tertiary); font-style:italic">Aucune demande en attente.</div>';
+        } else {
+            todayList.innerHTML = toDecide.map(m => `
+                <div class="card">
+                    <div class="meeting-title" style="font-size:16px">${m.title}</div>
+                    <div class="meeting-inst" style="margin-bottom:10px">${m.date} · ${m.time} · ${m.inst}</div>
+
+                    <textarea id="note-${m.id}" class="dir-note-input" placeholder="Ajouter une note ou raison du refus..."></textarea>
+
+                    <div style="display:flex;gap:10px">
+                        <button class="btn btn-primary" style="flex:1" onclick="confirmMeeting(${m.id})">Accepter</button>
+                        <button class="btn btn-danger" style="flex:1" onclick="rescheduleMeeting(${m.id})">Refuser / Reporter</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 2. Render Confirmed Today
+        if (confirmedToday.length === 0) {
+            todayConfirmedList.innerHTML = '<div class="card" style="color:var(--color-text-tertiary); font-style:italic">Aucune réunion confirmée pour aujourd\'hui.</div>';
+        } else {
+            todayConfirmedList.innerHTML = confirmedToday.map(m => `
+                <div class="card" style="border-left: 4px solid #3B6D11">
+                    <div style="display:flex; justify-content:space-between; align-items:start">
+                        <div>
+                            <div class="meeting-title" style="font-size:16px">${m.title}</div>
+                            <div class="meeting-inst">${m.date} · ${m.time} · ${m.inst}</div>
+                        </div>
+                        <span class="badge b-confirmed">Confirmé</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 3. Render Upcoming (Future)
+        if (upcoming.length === 0) {
+            upcomingList.innerHTML = '<div class="card">Aucune réunion prévue dans le futur.</div>';
+        } else {
+            upcoming.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+            upcomingList.innerHTML = upcoming.map(m => `
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:start">
+                        <div>
+                            <div class="meeting-title" style="font-size:16px">${m.title}</div>
+                            <div class="meeting-inst">${m.date} · ${m.time} · ${m.inst}</div>
+                        </div>
+                        <span class="badge b-confirmed">Confirmé</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 4. Render Refused
+        if (refused.length === 0) {
+            refusedList.innerHTML = '<div class="card">Aucune réunion refusée.</div>';
+        } else {
+            refusedList.innerHTML = refused.map(m => `
+                <div class="card" style="border-left: 4px solid #E24B4A">
+                    <div class="meeting-title" style="font-size:16px">${m.title}</div>
+                    <div class="meeting-inst" style="margin-bottom:10px">${m.date} · ${m.time} · ${m.inst}</div>
+                    ${m.note ? `<div class="note-box" style="margin-bottom:10px"><strong>Votre note:</strong><br>${m.note}</div>` : ''}
+                    <button class="btn btn-primary" style="width:100%" onclick="confirmMeeting(${m.id})">Finalement Accepter</button>
+                </div>
+            `).join('');
+        }
+    }
+
+    function goPortal(role){
+        document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+        document.getElementById('screen-'+role).classList.add('active');
+        renderApp();
+    }
+    function logout(){ goPortal('login'); }
+
+    function secNav(el,panel){
+        document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+        if(el) el.classList.add('active');
+        document.querySelectorAll('#screen-secretary .panel').forEach(p=>p.classList.remove('active'));
+        document.getElementById('sec-'+panel).classList.add('active');
+    }
+    function dirNav(el,panel){
+        document.querySelectorAll('.topnav-item').forEach(n=>n.classList.remove('active'));
+        if(el) el.classList.add('active');
+        document.querySelectorAll('#screen-director .panel').forEach(p=>p.classList.remove('active'));
+        document.getElementById(panel).classList.add('active');
+    }
+
+    loadMeetings();
+    renderApp();
+</script>
+</body>
+</html>
